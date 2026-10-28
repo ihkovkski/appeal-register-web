@@ -51,6 +51,11 @@ function currentFY() { const n = new Date(); return n.getFullYear() + 543 + (n.g
 function hl(s, q) { const e = esc(s); if (!q) return e; const qe = esc(q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); return e.replace(new RegExp(qe, "gi"), m => `<mark class="mark">${m}</mark>`); }
 function pill(o) { if (!o) return '<span class="small">—</span>'; return `<span class="pill" style="background:var(--${o.c}-soft);color:var(--${o.c})"><span class="dot" style="background:var(--${o.c})"></span>${o.t}</span>`; }
 const laws = s => String(s || "").split(/[;\n]+/).map(x => x.trim()).filter(Boolean);
+// ลิงก์เอกสารแนบ: รับเฉพาะ http(s) กันลิงก์อันตราย
+const safeUrl = u => /^https?:\/\//i.test(String(u || "").trim()) ? String(u).trim() : "";
+const LINK_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21.4 11.1 12.2 20.3a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg>';
+const linkChips = (links, q) => (links || []).filter(l => safeUrl(l.url)).map(l =>
+  `<a class="doc-link" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener noreferrer">${LINK_ICON}${hl(l.label || "เอกสาร", q || "")}</a>`).join("");
 function toast(t) { const el = $("toast"); el.textContent = t; el.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => el.hidden = true, 2400); }
 document.querySelectorAll("[data-org]").forEach(e => e.textContent = ORG_NAME);
 
@@ -187,7 +192,7 @@ function filtered() {
   return inFY().filter(i => {
     if (view.status && i.status !== view.status) return false;
     if (view.result && i.result !== view.result) return false;
-    if (q) { const hay = [i.project, i.agency, i.appellant, i.docNo, i.office, i.owner, i.laws, i.summary, i.meetingNo, i.pnNo, i.refNo].join(" ").toLowerCase(); if (!hay.includes(q)) return false; }
+    if (q) { const hay = [i.project, i.agency, i.appellant, i.docNo, i.office, i.owner, i.laws, i.summary, i.meetingNo, i.pnNo, i.refNo, (i.links || []).map(l => l.label).join(" ")].join(" ").toLowerCase(); if (!hay.includes(q)) return false; }
     return true;
   }).sort((a, b) => (b.fy - a.fy) || ((a.seq || 0) - (b.seq || 0)));
 }
@@ -211,7 +216,7 @@ function renderRows() {
     const sumHit = q && i.summary && i.summary.toLowerCase().includes(ql);
     return `<tr data-id="${esc(i.id)}" tabindex="0">
       <td class="c-seq seq">${view.fy === "all" ? esc(i.fy) + "/" : ""}${esc(i.seq ?? "")}</td>
-      <td class="c-proj"><div class="proj">${hl(i.project, q)}</div><div class="small">${hl(i.agency, q)}${i.docNo ? ` · ${hl(i.docNo, q)}` : ""}${i.docDate ? ` ลว. ${thDate(i.docDate)}` : ""}</div>${lawHit.length ? `<div>${lawHit.map(x => `<span class="law">${hl(x, q)}</span>`).join("")}</div>` : ""}${sumHit ? `<div class="small">${hl(i.summary.slice(0, 160), q)}${i.summary.length > 160 ? "…" : ""}</div>` : ""}</td>
+      <td class="c-proj"><div class="proj">${hl(i.project, q)}</div><div class="small">${hl(i.agency, q)}${i.docNo ? ` · ${hl(i.docNo, q)}` : ""}${i.docDate ? ` ลว. ${thDate(i.docDate)}` : ""}</div>${lawHit.length ? `<div>${lawHit.map(x => `<span class="law">${hl(x, q)}</span>`).join("")}</div>` : ""}${sumHit ? `<div class="small">${hl(i.summary.slice(0, 160), q)}${i.summary.length > 160 ? "…" : ""}</div>` : ""}${i.links?.length ? `<div class="doc-links">${linkChips(i.links, q)}</div>` : ""}</td>
       <td class="c-app">${hl(i.appellant, q) || '<span class="small">—</span>'}${i.office || i.owner ? `<div class="small">${hl(i.office, q)}${i.office && i.owner ? " · " : ""}${hl(i.owner, q)}</div>` : ""}</td>
       <td class="c-st">${pill(stOf(i.status))}${i.statusDate ? `<div class="small nowrap">เมื่อ ${thDate(i.statusDate)}</div>` : ""}</td>
       <td class="c-res">${pill(rsOf(i.result))}</td>
@@ -239,7 +244,7 @@ $("fyTabs").addEventListener("click", e => { const b = e.target.closest("[data-f
 $("strip").addEventListener("click", e => { const b = e.target.closest("[data-st]"); if (!b) return; view.status = b.dataset.st; renderStrip(); renderRows(); });
 let qT; $("q").addEventListener("input", e => { clearTimeout(qT); qT = setTimeout(() => { view.q = e.target.value; renderRows(); }, 120); });
 $("resF").addEventListener("change", e => { view.result = e.target.value; renderRows(); });
-const openRow = e => { const tr = e.target.closest("tr[data-id]"); if (tr) openSheet(items.find(i => i.id === tr.dataset.id)); };
+const openRow = e => { if (e.target.closest("a")) return; const tr = e.target.closest("tr[data-id]"); if (tr) openSheet(items.find(i => i.id === tr.dataset.id)); };
 $("rows").addEventListener("click", openRow);
 $("rows").addEventListener("keydown", e => { if (e.key === "Enter") openRow(e); });
 $("empty").addEventListener("click", e => { if (e.target.closest("[data-add]")) openSheet(null); });
@@ -263,8 +268,10 @@ function openSheet(rec) {
   $("audit").textContent = rec ? [rec.createdBy && `ลงทะเบียนโดย ${uname(rec.createdBy)} ${fmtTs(rec.createdAt)}`, rec.updatedBy && `แก้ไขล่าสุดโดย ${uname(rec.updatedBy)} ${fmtTs(rec.updatedAt)}`].filter(Boolean).join(" · ") : "";
   $("formErr").hidden = true;
   $("delZone").innerHTML = rec && isAdmin() ? '<button type="button" class="btn danger" id="delBtn">ลบเรื่องนี้</button>' : "";
+  renderLinkRows(rec?.links || []);
   const ro = !canEdit();
-  $("form").querySelectorAll("input,textarea").forEach(x => x.disabled = ro);
+  $("form").querySelectorAll("input,textarea,select").forEach(x => { if (x.type !== "hidden") x.disabled = ro; });
+  $("addLinkBtn").hidden = ro; $("linksEdit").querySelectorAll("[data-rm]").forEach(b => b.hidden = ro);
   $("saveBtn").hidden = ro;
   $("scrim").hidden = false; $("sheet").hidden = false; $("form").scrollTop = 0;
   if (!ro) setTimeout(() => $("f_project").focus(), 30);
@@ -295,6 +302,9 @@ $("form").addEventListener("submit", async e => {
   if (!rec.project || !rec.fy) { $("formErr").hidden = false; $("formErr").textContent = "กรอกปีงบประมาณและชื่อโครงการก่อนบันทึก"; return; }
   // เรื่องใหม่: ระบบกำหนดเลขรันเอง / แก้ไข: ใช้เลขเดิม
   if (!editing) rec.seq = nextSeq(rec.fy);
+  const links = readLinkRows();
+  if (links === null) return;
+  rec.links = links;
   rec.updatedBy = me.user; rec.updatedAt = serverTimestamp();
   const btn = $("saveBtn"); btn.disabled = true;
   try {
@@ -310,10 +320,47 @@ $("form").addEventListener("submit", async e => {
   finally { btn.disabled = false; }
 });
 
+// ---------- เอกสารแนบ (ลิงก์) ----------
+let linkSeq = 0;
+function linkRowHtml(l) {
+  const n = ++linkSeq, u = safeUrl(l.url);
+  return `<div class="link-row">
+    <input id="lk_label_${n}" data-lk="label" list="linkLabels" placeholder="ชื่อเอกสาร เช่น หนังสืออุทธรณ์" value="${esc(l.label || "")}" aria-label="ชื่อเอกสาร">
+    <input id="lk_url_${n}" data-lk="url" type="url" inputmode="url" placeholder="https://drive.google.com/..." value="${esc(l.url || "")}" aria-label="ลิงก์">
+    <a class="btn link-open" href="${esc(u)}" target="_blank" rel="noopener noreferrer" ${u ? "" : "hidden"}>เปิด</a>
+    <button type="button" class="btn danger" data-rm aria-label="ลบลิงก์">ลบ</button>
+  </div>`;
+}
+function renderLinkRows(links) { $("linksEdit").innerHTML = links.map(linkRowHtml).join(""); }
+$("addLinkBtn").onclick = () => {
+  $("linksEdit").insertAdjacentHTML("beforeend", linkRowHtml({}));
+  $("linksEdit").lastElementChild.querySelector("[data-lk=label]").focus();
+};
+$("linksEdit").addEventListener("click", e => { const b = e.target.closest("[data-rm]"); if (b) b.closest(".link-row").remove(); });
+$("linksEdit").addEventListener("input", e => {
+  if (e.target.dataset.lk !== "url") return;
+  const a = e.target.closest(".link-row").querySelector(".link-open"), u = safeUrl(e.target.value);
+  a.hidden = !u; if (u) a.href = u;
+});
+// อ่านลิงก์จากฟอร์ม; คืน null ถ้ามีลิงก์ผิดรูปแบบ
+function readLinkRows() {
+  const out = [];
+  for (const row of $("linksEdit").querySelectorAll(".link-row")) {
+    const label = row.querySelector("[data-lk=label]").value.trim(), url = row.querySelector("[data-lk=url]").value.trim();
+    if (!label && !url) continue;
+    if (!safeUrl(url)) {
+      $("formErr").hidden = false; $("formErr").textContent = `ลิงก์ “${label || url}” ต้องขึ้นต้นด้วย https:// คัดลอกลิงก์จาก Google Drive มาวางใหม่`;
+      row.querySelector("[data-lk=url]").focus(); return null;
+    }
+    out.push({ label: label || "เอกสาร", url });
+  }
+  return out;
+}
+
 // ---------- ส่งออก CSV ----------
 $("exportBtn").onclick = () => {
-  const H = ["ปีงบประมาณ","ลำดับที่","ชื่อโครงการ","ชื่อหน่วยงาน","เลขที่หนังสือหน่วยงาน","ลงวันที่","ชื่อผู้อุทธรณ์","วันที่กรมส่งเรื่องให้เขต","วันที่เขตส่งเรื่องให้กรม","สำนักงานคลังจังหวัดที่พิจารณา","ผู้รับผิดชอบเรื่อง","นำเข้าการประชุมครั้งที่","ลำดับเรื่องในวาระ","เลขเอกสาร พณ.","เลขท้ายเรื่อง","วันที่เข้าประชุม","ผลการพิจารณา","ข้อกฎหมายที่เกี่ยวข้อง","สรุปประเด็นวินิจฉัย","สถานะ","เมื่อวันที่"];
-  const rows = filtered().map(i => [i.fy, i.seq, i.project, i.agency, i.docNo, thDate(i.docDate), i.appellant, thDate(i.deptToRegion), thDate(i.regionToDept), i.office, i.owner, i.meetingNo, i.agendaNo, i.pnNo, i.refNo, thDate(i.meetingDate), rsOf(i.result)?.t || "", i.laws, i.summary, stOf(i.status)?.t || "", thDate(i.statusDate)]);
+  const H = ["ปีงบประมาณ","ลำดับที่","ชื่อโครงการ","ชื่อหน่วยงาน","เลขที่หนังสือหน่วยงาน","ลงวันที่","ชื่อผู้อุทธรณ์","วันที่กรมส่งเรื่องให้เขต","วันที่เขตส่งเรื่องให้กรม","สำนักงานคลังจังหวัดที่พิจารณา","ผู้รับผิดชอบเรื่อง","นำเข้าการประชุมครั้งที่","ลำดับเรื่องในวาระ","เลขเอกสาร พณ.","เลขท้ายเรื่อง","วันที่เข้าประชุม","ผลการพิจารณา","ข้อกฎหมายที่เกี่ยวข้อง","สรุปประเด็นวินิจฉัย","สถานะ","เมื่อวันที่","เอกสารแนบ"];
+  const rows = filtered().map(i => [i.fy, i.seq, i.project, i.agency, i.docNo, thDate(i.docDate), i.appellant, thDate(i.deptToRegion), thDate(i.regionToDept), i.office, i.owner, i.meetingNo, i.agendaNo, i.pnNo, i.refNo, thDate(i.meetingDate), rsOf(i.result)?.t || "", i.laws, i.summary, stOf(i.status)?.t || "", thDate(i.statusDate), (i.links || []).map(l => `${l.label || "เอกสาร"}: ${l.url}`).join("\n")]);
   const csv = "﻿" + [H, ...rows].map(r => r.map(v => '"' + String(v ?? "").replace(/"/g, '""') + '"').join(",")).join("\r\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));

@@ -143,3 +143,13 @@ legend{font-weight:700;font-size:14px;padding:0 6px}
 .mem.off .who{opacity:.6}
 .reset-row{flex-basis:100%;display:flex;gap:8px}
 .reset-row input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px 10px}
+.links-edit{display:grid;gap:8px}
+.link-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) auto auto;gap:6px;align-items:center}
+.link-row input{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+.link-row .btn{padding:6px 10px;text-decoration:none;color:var(--accent)}
+.link-row .btn.danger{color:var(--bad)}
+#addLinkBtn{justify-self:start}
+.doc-links{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.doc-link{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:1px 8px;text-decoration:none}
+.doc-link:hover{text-decoration:underline}
+@media (max-width:720px){.link-row{grid-template-columns:1fr auto auto}.link-row [data-lk=label]{grid-column:1/-1}}

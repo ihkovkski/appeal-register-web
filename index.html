@@ -138,6 +138,18 @@
       <div class="f full"><label for="f_laws">ข้อกฎหมายที่เกี่ยวข้อง</label><textarea id="f_laws" placeholder="เช่น พ.ร.บ.การจัดซื้อจัดจ้างฯ 2560 มาตรา 117; ระเบียบฯ ข้อ 55"></textarea><span class="hint">คั่นแต่ละข้อด้วย ; หรือขึ้นบรรทัดใหม่</span></div>
       <div class="f full"><label for="f_summary">สรุปประเด็นวินิจฉัย</label><textarea id="f_summary" placeholder="ประเด็นที่อุทธรณ์และเหตุผลที่วินิจฉัย ใช้สืบค้นแนววินิจฉัยภายหลัง"></textarea></div>
     </fieldset>
+    <fieldset>
+      <legend>เอกสารแนบ (ลิงก์ Google Drive)</legend>
+      <div class="f full">
+        <div class="links-edit" id="linksEdit"></div>
+        <button type="button" class="btn" id="addLinkBtn">+ เพิ่มลิงก์เอกสาร</button>
+        <span class="hint">ใน Google Drive คลิกขวาที่ไฟล์ › แชร์ › คัดลอกลิงก์ แล้ววางที่นี่ ตั้งสิทธิ์แชร์ให้เจ้าหน้าที่เปิดได้</span>
+        <datalist id="linkLabels">
+          <option value="หนังสืออุทธรณ์"><option value="หนังสือหน่วยงาน"><option value="ความเห็นสำนักงานคลังจังหวัด">
+          <option value="ระเบียบวาระการประชุม"><option value="หนังสือแจ้งผล"><option value="เอกสารประกอบ">
+        </datalist>
+      </div>
+    </fieldset>
     <div class="audit" id="audit"></div>
     <div class="err" id="formErr" hidden></div>
   </form>

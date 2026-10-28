@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ทะเบียนคุมอุทธรณ์</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Noto+Serif+Thai:wght@600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>html{color-scheme:light}body{margin:0}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+</head>
+<body>
+
+<!-- หน้าล็อกอิน / ไม่มีสิทธิ์ -->
+<div class="wrap" id="gate">
+  <div class="gate">
+    <div class="gate-card" id="gateCard">
+      <div class="eyebrow" data-org></div>
+      <h1>ทะเบียนคุมอุทธรณ์จัดซื้อจัดจ้าง</h1>
+      <p id="gateMsg">กำลังตรวจสอบการเข้าสู่ระบบ…</p>
+      <form id="loginForm" class="login-form" novalidate hidden>
+        <div class="f"><label for="l_user">ชื่อผู้ใช้</label><input id="l_user" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+        <div class="f"><label for="l_pass">รหัสผ่าน</label><input id="l_pass" type="password" autocomplete="current-password" required></div>
+        <div class="err" id="loginErr" hidden></div>
+        <button class="btn primary" id="loginBtn" type="submit">เข้าสู่ระบบ</button>
+        <div class="hint">ลืมรหัสผ่าน ติดต่อผู้ดูแลระบบเพื่อตั้งรหัสใหม่</div>
+      </form>
+      <form id="setupForm" class="login-form" novalidate hidden>
+        <div class="f"><label for="s_user">ชื่อผู้ใช้ผู้ดูแล</label><input id="s_user" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="เช่น admin" required></div>
+        <div class="f"><label for="s_name">ชื่อ–สกุล</label><input id="s_name"></div>
+        <div class="f"><label for="s_pass">รหัสผ่าน</label><input id="s_pass" type="password" autocomplete="new-password" required></div>
+        <div class="f"><label for="s_pass2">ยืนยันรหัสผ่าน</label><input id="s_pass2" type="password" autocomplete="new-password" required></div>
+        <div class="err" id="setupErr" hidden></div>
+        <button class="btn primary" type="submit">สร้างผู้ดูแลและเข้าสู่ระบบ</button>
+      </form>
+      <div class="actions" style="justify-content:center">
+        <button class="btn" id="gateLogout" type="button" hidden>ออกจากระบบ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- แอปหลัก -->
+<div class="wrap" id="app" hidden>
+  <header>
+    <div>
+      <div class="eyebrow">ระบบทะเบียนคุม · <span data-org></span></div>
+      <h1>ทะเบียนคุมอุทธรณ์จัดซื้อจัดจ้าง</h1>
+      <div class="sub">ติดตามสถานะเรื่องอุทธรณ์ และสืบค้นแนววินิจฉัยย้อนหลัง</div>
+    </div>
+    <div class="hdr-right">
+      <div class="userbar"><span id="meEmail"></span><span class="role" id="meRole"></span><button class="btn" id="pwBtn" type="button" style="padding:3px 10px">เปลี่ยนรหัสผ่าน</button><button class="btn" id="logoutBtn" type="button" style="padding:3px 10px">ออกจากระบบ</button></div>
+      <div class="actions">
+        <button class="btn" id="membersBtn" type="button" hidden>จัดการผู้ใช้</button>
+        <button class="btn" id="exportBtn" type="button">ส่งออก CSV</button>
+        <button class="btn primary" id="addBtn" type="button">+ เพิ่มเรื่องอุทธรณ์</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="fy" id="fyTabs" aria-label="ปีงบประมาณ"></div>
+  <div class="strip" id="strip"></div>
+
+  <div class="tools">
+    <label class="search" for="q">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="ค้นหาชื่อโครงการ หน่วยงาน ผู้อุทธรณ์ ข้อกฎหมาย หรือประเด็นวินิจฉัย">
+    </label>
+    <select id="resF" aria-label="ผลการพิจารณา"></select>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div id="notice" class="notice" hidden></div>
+  <div class="table-box">
+    <table>
+      <thead><tr>
+        <th>ลำดับ</th><th>ชื่อโครงการ / หน่วยงาน</th><th>ผู้อุทธรณ์ / ผู้พิจารณา</th><th>สถานะ</th><th>ผลการพิจารณา</th><th>ประชุม</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden></div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+
+<!-- แผงบันทึกเรื่อง -->
+<aside class="sheet" id="sheet" hidden aria-labelledby="sheetTitle" role="dialog">
+  <div class="sheet-head">
+    <h2 id="sheetTitle">เพิ่มเรื่องอุทธรณ์</h2>
+    <button class="btn" type="button" data-close>ปิด</button>
+  </div>
+  <form id="form" class="sheet-body" novalidate>
+    <fieldset>
+      <legend>ข้อมูลเรื่อง</legend>
+      <div class="f"><label for="f_fy">ปีงบประมาณ <span class="req">*</span></label><input id="f_fy" type="number" min="2500" max="2700" required></div>
+      <input id="f_seq" type="hidden"><!-- เลขรันภายในระบบ กำหนดอัตโนมัติ ไม่แสดง ไม่ให้แก้ -->
+      <div class="f full"><label for="f_project">ชื่อโครงการ <span class="req">*</span></label><input id="f_project" required></div>
+      <div class="f full"><label for="f_agency">ชื่อหน่วยงาน</label><input id="f_agency" list="agencyList"><datalist id="agencyList"></datalist></div>
+      <div class="f"><label for="f_docNo">เลขที่หนังสือหน่วยงาน</label><input id="f_docNo"></div>
+      <div class="f"><label for="f_docDate">ลงวันที่</label><input id="f_docDate" type="date"></div>
+      <div class="f full"><label for="f_appellant">ชื่อผู้อุทธรณ์</label><input id="f_appellant"></div>
+    </fieldset>
+    <fieldset>
+      <legend>การรับ–ส่งเรื่อง</legend>
+      <div class="f"><label for="f_deptToRegion">วันที่กรมส่งเรื่องให้เขต</label><input id="f_deptToRegion" type="date"></div>
+      <div class="f"><label for="f_regionToDept">วันที่เขตส่งเรื่องให้กรม</label><input id="f_regionToDept" type="date"></div>
+      <div class="f"><label for="f_office">สำนักงานคลังจังหวัดที่พิจารณา</label>
+        <select id="f_office">
+          <option value="">— เลือก —</option>
+          <option>สำนักงานคลังเขต 7</option>
+          <option>จังหวัดนครปฐม</option>
+          <option>จังหวัดกาญจนบุรี</option>
+          <option>จังหวัดประจวบคีรีขันธ์</option>
+          <option>จังหวัดเพชรบุรี</option>
+          <option>จังหวัดราชบุรี</option>
+          <option>จังหวัดสมุทรสงคราม</option>
+          <option>จังหวัดสมุทรสาคร</option>
+          <option>จังหวัดสุพรรณบุรี</option>
+        </select>
+        <datalist id="officeList"></datalist>
+      </div>
+      <div class="f"><label for="f_owner">ผู้รับผิดชอบเรื่อง</label><input id="f_owner" list="ownerList" placeholder="เช่น ธนกานต์"><datalist id="ownerList"></datalist></div>
+      <div class="f"><label for="f_meetingNo">นำเข้าการประชุมครั้งที่</label><input id="f_meetingNo" placeholder="เช่น 18/2569"></div>
+      <div class="f"><label for="f_agendaNo">ลำดับเรื่องในวาระที่ 4</label><input id="f_agendaNo" type="number" min="1" placeholder="เช่น 3"></div>
+      <div class="f"><label for="f_pnNo">เลขเอกสาร พณ.</label><input id="f_pnNo" placeholder="เช่น พณ. 6 - 18/2569"></div>
+      <div class="f"><label for="f_refNo">เลขท้ายเรื่อง</label><input id="f_refNo" placeholder="เช่น 007459"></div>
+      <div class="f"><label for="f_meetingDate">วันที่เข้าประชุม</label><input id="f_meetingDate" type="date"></div>
+    </fieldset>
+    <fieldset>
+      <legend>สถานะการดำเนินงาน</legend>
+      <div class="f full"><span class="small" id="stLbl">สถานะ</span><div class="radios" id="f_status" role="radiogroup" aria-labelledby="stLbl"></div></div>
+      <div class="f"><label for="f_statusDate">เมื่อวันที่</label><input id="f_statusDate" type="date"></div>
+    </fieldset>
+    <fieldset>
+      <legend>ผลการพิจารณา</legend>
+      <div class="f full"><span class="small" id="rsLbl">ผล</span><div class="radios" id="f_result" role="radiogroup" aria-labelledby="rsLbl"></div></div>
+      <div class="f full"><label for="f_laws">ข้อกฎหมายที่เกี่ยวข้อง</label><textarea id="f_laws" placeholder="เช่น พ.ร.บ.การจัดซื้อจัดจ้างฯ 2560 มาตรา 117; ระเบียบฯ ข้อ 55"></textarea><span class="hint">คั่นแต่ละข้อด้วย ; หรือขึ้นบรรทัดใหม่</span></div>
+      <div class="f full"><label for="f_summary">สรุปประเด็นวินิจฉัย</label><textarea id="f_summary" placeholder="ประเด็นที่อุทธรณ์และเหตุผลที่วินิจฉัย ใช้สืบค้นแนววินิจฉัยภายหลัง"></textarea></div>
+    </fieldset>
+    <div class="audit" id="audit"></div>
+    <div class="err" id="formErr" hidden></div>
+  </form>
+  <div class="sheet-foot">
+    <div id="delZone"></div>
+    <div class="actions">
+      <button class="btn" type="button" data-close>ยกเลิก</button>
+      <button class="btn primary" type="submit" form="form" id="saveBtn">บันทึก</button>
+    </div>
+  </div>
+</aside>
+
+<!-- แผงจัดการผู้ใช้ (admin) -->
+<aside class="sheet" id="memSheet" hidden aria-labelledby="memTitle" role="dialog">
+  <div class="sheet-head">
+    <h2 id="memTitle">จัดการผู้ใช้</h2>
+    <button class="btn" type="button" data-close>ปิด</button>
+  </div>
+  <div class="sheet-body">
+    <form id="memForm" novalidate>
+      <fieldset>
+        <legend>เพิ่มผู้ใช้</legend>
+        <div class="f"><label for="m_user">ชื่อผู้ใช้</label><input id="m_user" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="เช่น somchai" required><span class="hint">a–z, 0–9, จุด, ขีด · 3–30 ตัว</span></div>
+        <div class="f"><label for="m_pass">รหัสผ่านเริ่มต้น</label><input id="m_pass" autocomplete="new-password" required><span class="hint">อย่างน้อย 4 ตัว ผู้ใช้เปลี่ยนเองได้ภายหลัง</span></div>
+        <div class="f"><label for="m_name">ชื่อ–สกุล</label><input id="m_name"></div>
+        <div class="f"><label for="m_role">สิทธิ์</label><select id="m_role"><option value="editor">ผู้บันทึก (editor)</option><option value="viewer">ดูอย่างเดียว (viewer)</option><option value="admin">ผู้ดูแล (admin)</option></select></div>
+        <div class="f full"><button class="btn primary" type="submit" id="memAddBtn">สร้างผู้ใช้</button><span class="err" id="memErr" hidden></span></div>
+      </fieldset>
+    </form>
+    <div class="hint">ผู้ดูแล: ลบเรื่อง และจัดการผู้ใช้ · ผู้บันทึก: เพิ่มและแก้ไขเรื่อง · ดูอย่างเดียว: ค้นและดู<br>“ยกเลิกสิทธิ์” แล้วผู้ใช้นั้นเข้าระบบไม่ได้ทันที คืนสิทธิ์หรือลบบัญชีได้ภายหลัง · ผู้ใช้ลืมรหัสผ่าน กด “ตั้งรหัสใหม่”</div>
+    <div class="mem-list" id="memList"></div>
+  </div>
+</aside>
+
+<!-- แผงเปลี่ยนรหัสผ่าน -->
+<aside class="sheet" id="pwSheet" hidden aria-labelledby="pwTitle" role="dialog">
+  <div class="sheet-head">
+    <h2 id="pwTitle">เปลี่ยนรหัสผ่าน</h2>
+    <button class="btn" type="button" data-close>ปิด</button>
+  </div>
+  <form id="pwForm" class="sheet-body" novalidate>
+    <fieldset>
+      <legend id="pwWho">บัญชีของคุณ</legend>
+      <div class="f full"><label for="p_old">รหัสผ่านปัจจุบัน</label><input id="p_old" type="password" autocomplete="current-password" required></div>
+      <div class="f"><label for="p_new">รหัสผ่านใหม่</label><input id="p_new" type="password" autocomplete="new-password" required><span class="hint">อย่างน้อย 4 ตัว</span></div>
+      <div class="f"><label for="p_new2">ยืนยันรหัสผ่านใหม่</label><input id="p_new2" type="password" autocomplete="new-password" required></div>
+      <div class="f full"><button class="btn primary" type="submit" id="pwSave">บันทึกรหัสผ่านใหม่</button><span class="err" id="pwErr" hidden></span></div>
+    </fieldset>
+  </form>
+</aside>
+
+<div class="toast" id="toast" hidden></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

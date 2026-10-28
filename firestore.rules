@@ -1,0 +1,32 @@
+rules_version = '2';
+
+// กฎฐานข้อมูลทะเบียนคุมอุทธรณ์ (แบบใช้งานภายใน ไม่ใช้ Firebase Authentication)
+//  - ชื่อผู้ใช้/รหัสผ่าน และสิทธิ์ ตรวจสอบในหน้าเว็บ
+//  - กฎนี้ตรวจแค่รูปแบบข้อมูล กันข้อมูลเสียหรือผิดรูปแบบ
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /appeals/{id} {
+      allow read, delete: if true;
+      allow create, update: if request.resource.data.project is string
+        && request.resource.data.project.size() > 0
+        && request.resource.data.project.size() <= 1000
+        && request.resource.data.fy is int
+        && request.resource.data.fy >= 2500 && request.resource.data.fy <= 2700
+        && request.resource.data.status in ['returned', 'pending', 'met', 'notified', '']
+        && request.resource.data.result in ['upheld', 'rejected', 'notaccepted', 'noright', ''];
+    }
+
+    match /users/{user} {
+      allow read, delete: if true;
+      allow create, update: if user.matches('^[a-z0-9][a-z0-9._-]{2,29}$')
+        && request.resource.data.role in ['admin', 'editor', 'viewer', 'disabled']
+        && request.resource.data.pw is string && request.resource.data.pw.size() == 64;
+    }
+
+    // คอลเลกชันอื่นปิดทั้งหมด
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

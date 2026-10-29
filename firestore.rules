@@ -14,7 +14,7 @@ service cloud.firestore {
         && request.resource.data.fy is int
         && request.resource.data.fy >= 2500 && request.resource.data.fy <= 2700
         && request.resource.data.status in ['returned', 'pending', 'met', 'notified', '']
-        && request.resource.data.result in ['upheld', 'rejected', 'notaccepted', 'noright', ''];
+        && request.resource.data.result in ['upheld', 'rejected', 'nogrounds', 'noright', ''];
     }
 
     match /users/{user} {

@@ -64,17 +64,34 @@
   <div class="tools">
     <label class="search" for="q">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="q" type="search" placeholder="ค้นหาชื่อโครงการ หน่วยงาน ผู้อุทธรณ์ ข้อกฎหมาย หรือประเด็นวินิจฉัย">
+      <input id="q" type="search" placeholder="ค้นหาทุกช่อง: โครงการ หน่วยงาน ผู้อุทธรณ์ เลขที่อุทธรณ์ ประเด็น ข้อกฎหมาย">
     </label>
-    <select id="resF" aria-label="ผลการพิจารณา"></select>
+    <button type="button" class="btn" id="advBtn" aria-expanded="false" aria-controls="adv">ค้นหาขั้นสูง<span class="adv-n" id="advN" hidden></span></button>
     <span class="count" id="count"></span>
   </div>
+
+  <section class="adv" id="adv" hidden aria-label="ค้นหาขั้นสูง">
+    <div class="adv-head"><strong>ค้นหาแนววินิจฉัยอุทธรณ์</strong><span class="small">กรอกช่องใดก็ได้ ผลลัพธ์แสดงทันที</span></div>
+    <div class="adv-grid">
+      <div class="f"><label for="a_appellant">ชื่อผู้อุทธรณ์</label><input id="a_appellant" data-adv="appellant,appellantId"></div>
+      <div class="f"><label for="a_agency">ชื่อหน่วยงาน</label><input id="a_agency" data-adv="agency"></div>
+      <div class="f"><label for="a_project">ชื่อโครงการ / เลขที่โครงการ</label><input id="a_project" data-adv="project,egpNo,appealNo"></div>
+      <div class="f"><label for="a_issue">ประเด็นอุทธรณ์ / เหตุผล</label><input id="a_issue" data-adv="issue,summary,laws"></div>
+      <div class="f"><label for="a_result">มติผลการพิจารณา</label><select id="a_result" data-adv-eq="result"></select></div>
+      <div class="f"><label for="a_procType">ประเภทการจัดหา</label><select id="a_procType" data-adv-eq="procType" data-from="f_procType"></select></div>
+      <div class="f"><label for="a_supply">พัสดุที่จัดหา</label><select id="a_supply" data-adv-eq="supply" data-from="f_supply"></select></div>
+      <div class="f"><label for="a_criteria">หลักเกณฑ์การพิจารณา</label><select id="a_criteria" data-adv-eq="criteria" data-from="f_criteria"></select></div>
+      <div class="f"><label for="a_office">สำนักงานคลังจังหวัด</label><select id="a_office" data-adv-eq="office" data-from="f_office"></select></div>
+      <div class="f"><label for="a_owner">ผู้รับผิดชอบ</label><input id="a_owner" data-adv="owner" list="ownerList"></div>
+    </div>
+    <div class="actions"><button type="button" class="btn" id="advClear">ล้างข้อมูล</button><button type="button" class="btn" id="advClose">ปิดค้นหาขั้นสูง</button></div>
+  </section>
 
   <div id="notice" class="notice" hidden></div>
   <div class="table-box">
     <table>
       <thead><tr>
-        <th>ลำดับ</th><th>ชื่อโครงการ / หน่วยงาน</th><th>ผู้อุทธรณ์ / ผู้พิจารณา</th><th>สถานะ</th><th>ผลการพิจารณา</th><th>ประชุม</th>
+        <th>ลำดับ</th><th>ชื่อโครงการ / หน่วยงาน</th><th>ผู้อุทธรณ์ / ผู้พิจารณา</th><th>สถานะ</th><th>ผลการพิจารณา</th><th>ประชุม</th><th>เอกสาร</th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
@@ -94,12 +111,44 @@
     <fieldset>
       <legend>ข้อมูลเรื่อง</legend>
       <div class="f"><label for="f_fy">ปีงบประมาณ <span class="req">*</span></label><input id="f_fy" type="number" min="2500" max="2700" required></div>
+      <div class="f"><label for="f_appealNo">เลขที่อุทธรณ์</label><input id="f_appealNo" placeholder="เช่น AP-660993080" autocapitalize="characters"></div>
       <input id="f_seq" type="hidden"><!-- เลขรันภายในระบบ กำหนดอัตโนมัติ ไม่แสดง ไม่ให้แก้ -->
       <div class="f full"><label for="f_project">ชื่อโครงการ <span class="req">*</span></label><input id="f_project" required></div>
+      <div class="f"><label for="f_egpNo">เลขที่โครงการ (e-GP)</label><input id="f_egpNo" inputmode="numeric" placeholder="เช่น 66079605367"></div>
+      <div class="f"><label for="f_procType">ประเภทการจัดหา</label>
+        <select id="f_procType">
+          <option value="">— เลือก —</option>
+          <option>ซื้อ</option>
+          <option>จ้างก่อสร้าง</option>
+          <option>จ้างทำของ/จ้างเหมาบริการ</option>
+          <option>เช่า</option>
+          <option>จ้างที่ปรึกษา</option>
+          <option>จ้างออกแบบ</option>
+          <option>จ้างควบคุมงาน</option>
+          <option>จ้างออกแบบและควบคุมงานก่อสร้าง</option>
+        </select>
+      </div>
+      <div class="f"><label for="f_supply">พัสดุที่จัดหา</label>
+        <select id="f_supply">
+          <option value="">— เลือก —</option>
+          <!-- เพิ่มรายการพัสดุที่นี่ บรรทัดละ 1 รายการ เช่น
+          <option>ครุภัณฑ์การแพทย์</option>
+          -->
+        </select>
+      </div>
+      <div class="f"><label for="f_criteria">หลักเกณฑ์การพิจารณา</label>
+        <select id="f_criteria">
+          <option value="">— เลือก —</option>
+          <option>เกณฑ์ราคา</option>
+          <option>เกณฑ์ราคาเกณฑ์คุณภาพ</option>
+          <option>เกณฑ์คุณภาพ</option>
+        </select>
+      </div>
       <div class="f full"><label for="f_agency">ชื่อหน่วยงาน</label><input id="f_agency" list="agencyList"><datalist id="agencyList"></datalist></div>
       <div class="f"><label for="f_docNo">เลขที่หนังสือหน่วยงาน</label><input id="f_docNo"></div>
       <div class="f"><label for="f_docDate">ลงวันที่</label><input id="f_docDate" type="date"></div>
-      <div class="f full"><label for="f_appellant">ชื่อผู้อุทธรณ์</label><input id="f_appellant"></div>
+      <div class="f"><label for="f_appellant">ชื่อผู้อุทธรณ์</label><input id="f_appellant"></div>
+      <div class="f"><label for="f_appellantId">เลขทะเบียนนิติบุคคลผู้อุทธรณ์</label><input id="f_appellantId" inputmode="numeric" maxlength="13" placeholder="13 หลัก"></div>
     </fieldset>
     <fieldset>
       <legend>การรับ–ส่งเรื่อง</legend>
@@ -135,18 +184,26 @@
     <fieldset>
       <legend>ผลการพิจารณา</legend>
       <div class="f full"><span class="small" id="rsLbl">ผล</span><div class="radios" id="f_result" role="radiogroup" aria-labelledby="rsLbl"></div></div>
+      <div class="f full"><label for="f_issue">ประเด็นอุทธรณ์</label><textarea id="f_issue" placeholder="สิ่งที่ผู้อุทธรณ์โต้แย้ง เช่น ถูกตัดสิทธิเพราะเอกสารไม่ครบ"></textarea></div>
       <div class="f full"><label for="f_laws">ข้อกฎหมายที่เกี่ยวข้อง</label><textarea id="f_laws" placeholder="เช่น พ.ร.บ.การจัดซื้อจัดจ้างฯ 2560 มาตรา 117; ระเบียบฯ ข้อ 55"></textarea><span class="hint">คั่นแต่ละข้อด้วย ; หรือขึ้นบรรทัดใหม่</span></div>
-      <div class="f full"><label for="f_summary">สรุปประเด็นวินิจฉัย</label><textarea id="f_summary" placeholder="ประเด็นที่อุทธรณ์และเหตุผลที่วินิจฉัย ใช้สืบค้นแนววินิจฉัยภายหลัง"></textarea></div>
+      <div class="f full"><label for="f_summary">เหตุผลการวินิจฉัย</label><textarea id="f_summary" placeholder="เหตุผลที่คณะอนุกรรมการวินิจฉัย ใช้สืบค้นแนววินิจฉัยภายหลัง"></textarea></div>
     </fieldset>
     <fieldset>
       <legend>เอกสารแนบ (ลิงก์ Google Drive)</legend>
+      <div class="f full doc-slots">
+        <div class="slot"><label for="f_docSource">ต้นเรื่อง</label><input id="f_docSource" type="url" inputmode="url" placeholder="https://drive.google.com/..."><a class="btn link-open" target="_blank" rel="noopener noreferrer" hidden>เปิด</a></div>
+        <div class="slot"><label for="f_docAgenda">วาระการประชุม</label><input id="f_docAgenda" type="url" inputmode="url" placeholder="https://drive.google.com/..."><a class="btn link-open" target="_blank" rel="noopener noreferrer" hidden>เปิด</a></div>
+        <div class="slot"><label for="f_docMinutes">รายงานการประชุม</label><input id="f_docMinutes" type="url" inputmode="url" placeholder="https://drive.google.com/..."><a class="btn link-open" target="_blank" rel="noopener noreferrer" hidden>เปิด</a></div>
+        <div class="slot"><label for="f_docResult">หนังสือแจ้งผลพิจารณาเต็ม</label><input id="f_docResult" type="url" inputmode="url" placeholder="https://drive.google.com/..."><a class="btn link-open" target="_blank" rel="noopener noreferrer" hidden>เปิด</a></div>
+      </div>
       <div class="f full">
+        <span class="small">เอกสารอื่น ๆ</span>
         <div class="links-edit" id="linksEdit"></div>
-        <button type="button" class="btn" id="addLinkBtn">+ เพิ่มลิงก์เอกสาร</button>
+        <button type="button" class="btn" id="addLinkBtn">+ เพิ่มลิงก์เอกสารอื่น</button>
         <span class="hint">ใน Google Drive คลิกขวาที่ไฟล์ › แชร์ › คัดลอกลิงก์ แล้ววางที่นี่ ตั้งสิทธิ์แชร์ให้เจ้าหน้าที่เปิดได้</span>
         <datalist id="linkLabels">
           <option value="หนังสืออุทธรณ์"><option value="หนังสือหน่วยงาน"><option value="ความเห็นสำนักงานคลังจังหวัด">
-          <option value="ระเบียบวาระการประชุม"><option value="หนังสือแจ้งผล"><option value="เอกสารประกอบ">
+          <option value="คำชี้แจงหน่วยงาน"><option value="เอกสารประกอบ">
         </datalist>
       </div>
     </fieldset>

@@ -33,14 +33,23 @@ const STATUSES = [
   { k: "notified", t: "หนังสือแจ้งผลออกแล้ว", c: "ok" }
 ];
 const RESULTS = [
-  { k: "upheld", t: "ฟังขึ้น", c: "ok" },
   { k: "rejected", t: "ฟังไม่ขึ้น", c: "bad" },
-  { k: "notaccepted", t: "ไม่รับพิจารณา", c: "gray" },
-  { k: "noright", t: "ใช้สิทธิอุทธรณ์ไม่ได้", c: "vio" }
+  { k: "upheld", t: "ฟังขึ้น", c: "ok" },
+  { k: "nogrounds", t: "ไม่มีเหตุผลอันเป็นเหตุแห่งการอุทธรณ์", c: "gray" },
+  { k: "noright", t: "ผู้อุทธรณ์ใช้สิทธิอุทธรณ์ไม่ได้", c: "vio" }
+];
+// เอกสารแนบประจำ 4 ช่อง (ตามต้นแบบ)
+const DOC_SLOTS = [
+  { k: "docSource", t: "ต้นเรื่อง", s: "ต้นเรื่อง" },
+  { k: "docAgenda", t: "วาระการประชุม", s: "วาระ" },
+  { k: "docMinutes", t: "รายงานการประชุม", s: "รายงาน" },
+  { k: "docResult", t: "หนังสือแจ้งผลพิจารณาเต็ม", s: "แจ้งผล" }
 ];
 const ROLE_TH = { admin: "ผู้ดูแล", editor: "ผู้บันทึก", viewer: "ดูอย่างเดียว", disabled: "ยกเลิกสิทธิ์แล้ว" };
-const FIELDS = ["fy","seq","project","agency","docNo","docDate","appellant","deptToRegion","regionToDept",
-  "office","owner","meetingNo","agendaNo","pnNo","refNo","meetingDate","statusDate","laws","summary"];
+const FIELDS = ["fy","seq","appealNo","project","egpNo","procType","supply","criteria","agency","docNo","docDate",
+  "appellant","appellantId","deptToRegion","regionToDept",
+  "office","owner","meetingNo","agendaNo","pnNo","refNo","meetingDate","statusDate","issue","laws","summary",
+  "docSource","docAgenda","docMinutes","docResult"];
 const MON = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 
 const $ = id => document.getElementById(id);
@@ -62,7 +71,7 @@ document.querySelectorAll("[data-org]").forEach(e => e.textContent = ORG_NAME);
 // ---------- สถานะแอป ----------
 let me = null;           // { user, name, role }
 let items = [], loaded = false, unsubAppeals = null, unsubMembers = null, members = [];
-const view = { fy: currentFY(), status: "", result: "", q: "" };
+const view = { fy: currentFY(), status: "", q: "", adv: {} };
 let editing = null;
 const canEdit = () => me && (me.role === "admin" || me.role === "editor");
 const isAdmin = () => me && me.role === "admin";
@@ -191,8 +200,11 @@ function filtered() {
   const q = view.q.trim().toLowerCase();
   return inFY().filter(i => {
     if (view.status && i.status !== view.status) return false;
-    if (view.result && i.result !== view.result) return false;
-    if (q) { const hay = [i.project, i.agency, i.appellant, i.docNo, i.office, i.owner, i.laws, i.summary, i.meetingNo, i.pnNo, i.refNo, (i.links || []).map(l => l.label).join(" ")].join(" ").toLowerCase(); if (!hay.includes(q)) return false; }
+    for (const [key, f] of Object.entries(view.adv)) {
+      if (f.eq) { if ((i[key] || "") !== f.v) return false; }
+      else if (!f.fields.some(k => String(i[k] || "").toLowerCase().includes(f.v))) return false;
+    }
+    if (q) { const hay = [i.appealNo, i.project, i.egpNo, i.procType, i.supply, i.criteria, i.agency, i.appellant, i.appellantId, i.docNo, i.office, i.owner, i.issue, i.laws, i.summary, i.meetingNo, i.pnNo, i.refNo, (i.links || []).map(l => l.label).join(" ")].join(" ").toLowerCase(); if (!hay.includes(q)) return false; }
     return true;
   }).sort((a, b) => (b.fy - a.fy) || ((a.seq || 0) - (b.seq || 0)));
 }
@@ -214,13 +226,18 @@ function renderRows() {
   $("rows").innerHTML = rows.map(i => {
     const lawHit = q ? laws(i.laws).filter(x => x.toLowerCase().includes(ql)) : [];
     const sumHit = q && i.summary && i.summary.toLowerCase().includes(ql);
+    const issueHit = q && i.issue && i.issue.toLowerCase().includes(ql);
+    const meta = [i.appealNo, i.egpNo && "e-GP " + i.egpNo, i.procType, i.supply, i.criteria].filter(Boolean);
     return `<tr data-id="${esc(i.id)}" tabindex="0">
       <td class="c-seq seq">${view.fy === "all" ? esc(i.fy) + "/" : ""}${esc(i.seq ?? "")}</td>
-      <td class="c-proj"><div class="proj">${hl(i.project, q)}</div><div class="small">${hl(i.agency, q)}${i.docNo ? ` · ${hl(i.docNo, q)}` : ""}${i.docDate ? ` ลว. ${thDate(i.docDate)}` : ""}</div>${lawHit.length ? `<div>${lawHit.map(x => `<span class="law">${hl(x, q)}</span>`).join("")}</div>` : ""}${sumHit ? `<div class="small">${hl(i.summary.slice(0, 160), q)}${i.summary.length > 160 ? "…" : ""}</div>` : ""}${i.links?.length ? `<div class="doc-links">${linkChips(i.links, q)}</div>` : ""}</td>
-      <td class="c-app">${hl(i.appellant, q) || '<span class="small">—</span>'}${i.office || i.owner ? `<div class="small">${hl(i.office, q)}${i.office && i.owner ? " · " : ""}${hl(i.owner, q)}</div>` : ""}</td>
+      <td class="c-proj"><div class="proj">${hl(i.project, q)}</div>${meta.length ? `<div class="meta">${meta.map(m => hl(m, q)).join(" · ")}</div>` : ""}<div class="small">${hl(i.agency, q)}${i.docNo ? ` · ${hl(i.docNo, q)}` : ""}${i.docDate ? ` ลว. ${thDate(i.docDate)}` : ""}</div>${lawHit.length ? `<div>${lawHit.map(x => `<span class="law">${hl(x, q)}</span>`).join("")}</div>` : ""}${issueHit ? `<div class="small"><b>ประเด็น:</b> ${hl(i.issue.slice(0, 160), q)}${i.issue.length > 160 ? "…" : ""}</div>` : ""}${sumHit ? `<div class="small">${hl(i.summary.slice(0, 160), q)}${i.summary.length > 160 ? "…" : ""}</div>` : ""}${i.links?.length ? `<div class="doc-links">${linkChips(i.links, q)}</div>` : ""}</td>
+      <td class="c-app">${hl(i.appellant, q) || '<span class="small">—</span>'}${i.appellantId ? `<div class="small">(${hl(i.appellantId, q)})</div>` : ""}${i.office || i.owner ? `<div class="small">${hl(i.office, q)}${i.office && i.owner ? " · " : ""}${hl(i.owner, q)}</div>` : ""}</td>
       <td class="c-st">${pill(stOf(i.status))}${i.statusDate ? `<div class="small nowrap">เมื่อ ${thDate(i.statusDate)}</div>` : ""}</td>
       <td class="c-res">${pill(rsOf(i.result))}</td>
       <td class="c-meet small nowrap">${i.meetingNo ? "ครั้งที่ " + hl(i.meetingNo, q) + (i.agendaNo ? " · เรื่องที่ " + esc(i.agendaNo) : "") : "—"}${i.meetingDate ? `<br>${thDate(i.meetingDate)}` : ""}${i.pnNo ? `<br>${hl(i.pnNo, q)}` : ""}${i.refNo ? ` · ${hl(i.refNo, q)}` : ""}</td>
+      <td class="c-doc"><div class="doc-slots-cell">${DOC_SLOTS.map(d => safeUrl(i[d.k])
+        ? `<a class="dslot on" href="${esc(safeUrl(i[d.k]))}" target="_blank" rel="noopener noreferrer" title="เปิด${d.t}">${LINK_ICON}${d.s}</a>`
+        : `<span class="dslot" title="ยังไม่มี${d.t}">${d.s}</span>`).join("")}</div></td>
     </tr>`;
   }).join("");
   const em = $("empty");
@@ -236,14 +253,31 @@ function renderLists() {
 }
 function renderAll() { renderTabs(); renderStrip(); renderRows(); renderLists(); }
 
-$("resF").innerHTML = '<option value="">ผลการพิจารณา: ทั้งหมด</option>' + RESULTS.map(r => `<option value="${r.k}">${r.t}</option>`).join("");
 $("f_status").innerHTML = STATUSES.map(s => `<label><input type="radio" name="status" value="${s.k}" id="st_${s.k}">${s.t}</label>`).join("");
 $("f_result").innerHTML = RESULTS.map(s => `<label><input type="radio" name="result" value="${s.k}" id="rs_${s.k}">${s.t}</label>`).join("") + `<label><input type="radio" name="result" value="" id="rs_none">ยังไม่มีผล</label>`;
 
 $("fyTabs").addEventListener("click", e => { const b = e.target.closest("[data-fy]"); if (!b) return; view.fy = b.dataset.fy === "all" ? "all" : Number(b.dataset.fy); renderAll(); });
 $("strip").addEventListener("click", e => { const b = e.target.closest("[data-st]"); if (!b) return; view.status = b.dataset.st; renderStrip(); renderRows(); });
 let qT; $("q").addEventListener("input", e => { clearTimeout(qT); qT = setTimeout(() => { view.q = e.target.value; renderRows(); }, 120); });
-$("resF").addEventListener("change", e => { view.result = e.target.value; renderRows(); });
+
+// ---------- ค้นหาขั้นสูง ----------
+$("a_result").innerHTML = '<option value="">ทั้งหมด</option>' + RESULTS.map(r => `<option value="${r.k}">${r.t}</option>`).join("");
+document.querySelectorAll("#adv select[data-from]").forEach(sel => {
+  sel.innerHTML = '<option value="">ทั้งหมด</option>' + [...$(sel.dataset.from).options].filter(o => o.value).map(o => `<option>${esc(o.value)}</option>`).join("");
+});
+function readAdv() {
+  view.adv = {};
+  document.querySelectorAll("#adv [data-adv]").forEach(el => { const v = el.value.trim().toLowerCase(); if (v) view.adv[el.id] = { fields: el.dataset.adv.split(","), v }; });
+  document.querySelectorAll("#adv [data-adv-eq]").forEach(el => { if (el.value) view.adv[el.dataset.advEq] = { eq: true, v: el.value }; });
+  const n = Object.keys(view.adv).length;
+  $("advN").hidden = !n; $("advN").textContent = n;
+  renderRows();
+}
+let advT; $("adv").addEventListener("input", () => { clearTimeout(advT); advT = setTimeout(readAdv, 150); });
+$("adv").addEventListener("change", readAdv);
+$("advBtn").onclick = () => { const open = $("adv").hidden; $("adv").hidden = !open; $("advBtn").setAttribute("aria-expanded", open); if (open) $("a_appellant").focus(); };
+$("advClose").onclick = () => { $("adv").hidden = true; $("advBtn").setAttribute("aria-expanded", "false"); };
+$("advClear").onclick = () => { $("adv").querySelectorAll("input,select").forEach(el => el.value = ""); readAdv(); };
 const openRow = e => { if (e.target.closest("a")) return; const tr = e.target.closest("tr[data-id]"); if (tr) openSheet(items.find(i => i.id === tr.dataset.id)); };
 $("rows").addEventListener("click", openRow);
 $("rows").addEventListener("keydown", e => { if (e.key === "Enter") openRow(e); });
@@ -269,6 +303,7 @@ function openSheet(rec) {
   $("formErr").hidden = true;
   $("delZone").innerHTML = rec && isAdmin() ? '<button type="button" class="btn danger" id="delBtn">ลบเรื่องนี้</button>' : "";
   renderLinkRows(rec?.links || []);
+  DOC_SLOTS.forEach(d => syncSlot($("f_" + d.k)));
   const ro = !canEdit();
   $("form").querySelectorAll("input,textarea,select").forEach(x => { if (x.type !== "hidden") x.disabled = ro; });
   $("addLinkBtn").hidden = ro; $("linksEdit").querySelectorAll("[data-rm]").forEach(b => b.hidden = ro);
@@ -302,6 +337,9 @@ $("form").addEventListener("submit", async e => {
   if (!rec.project || !rec.fy) { $("formErr").hidden = false; $("formErr").textContent = "กรอกปีงบประมาณและชื่อโครงการก่อนบันทึก"; return; }
   // เรื่องใหม่: ระบบกำหนดเลขรันเอง / แก้ไข: ใช้เลขเดิม
   if (!editing) rec.seq = nextSeq(rec.fy);
+  for (const d of DOC_SLOTS) {
+    if (rec[d.k] && !safeUrl(rec[d.k])) { $("formErr").hidden = false; $("formErr").textContent = `ลิงก์ “${d.t}” ต้องขึ้นต้นด้วย https:// คัดลอกลิงก์จาก Google Drive มาวางใหม่`; $("f_" + d.k).focus(); return; }
+  }
   const links = readLinkRows();
   if (links === null) return;
   rec.links = links;
@@ -321,6 +359,11 @@ $("form").addEventListener("submit", async e => {
 });
 
 // ---------- เอกสารแนบ (ลิงก์) ----------
+function syncSlot(input) {
+  const a = input.parentElement.querySelector(".link-open"), u = safeUrl(input.value);
+  a.hidden = !u; if (u) a.href = u; else a.removeAttribute("href");
+}
+document.querySelectorAll(".doc-slots input").forEach(inp => inp.addEventListener("input", () => syncSlot(inp)));
 let linkSeq = 0;
 function linkRowHtml(l) {
   const n = ++linkSeq, u = safeUrl(l.url);
@@ -359,8 +402,8 @@ function readLinkRows() {
 
 // ---------- ส่งออก CSV ----------
 $("exportBtn").onclick = () => {
-  const H = ["ปีงบประมาณ","ลำดับที่","ชื่อโครงการ","ชื่อหน่วยงาน","เลขที่หนังสือหน่วยงาน","ลงวันที่","ชื่อผู้อุทธรณ์","วันที่กรมส่งเรื่องให้เขต","วันที่เขตส่งเรื่องให้กรม","สำนักงานคลังจังหวัดที่พิจารณา","ผู้รับผิดชอบเรื่อง","นำเข้าการประชุมครั้งที่","ลำดับเรื่องในวาระ","เลขเอกสาร พณ.","เลขท้ายเรื่อง","วันที่เข้าประชุม","ผลการพิจารณา","ข้อกฎหมายที่เกี่ยวข้อง","สรุปประเด็นวินิจฉัย","สถานะ","เมื่อวันที่","เอกสารแนบ"];
-  const rows = filtered().map(i => [i.fy, i.seq, i.project, i.agency, i.docNo, thDate(i.docDate), i.appellant, thDate(i.deptToRegion), thDate(i.regionToDept), i.office, i.owner, i.meetingNo, i.agendaNo, i.pnNo, i.refNo, thDate(i.meetingDate), rsOf(i.result)?.t || "", i.laws, i.summary, stOf(i.status)?.t || "", thDate(i.statusDate), (i.links || []).map(l => `${l.label || "เอกสาร"}: ${l.url}`).join("\n")]);
+  const H = ["ปีงบประมาณ","ลำดับที่","เลขที่อุทธรณ์","ชื่อโครงการ","เลขที่โครงการ (e-GP)","ประเภทการจัดหา","พัสดุที่จัดหา","หลักเกณฑ์การพิจารณา","ชื่อหน่วยงาน","เลขที่หนังสือหน่วยงาน","ลงวันที่","ชื่อผู้อุทธรณ์","เลขทะเบียนนิติบุคคลผู้อุทธรณ์","วันที่กรมส่งเรื่องให้เขต","วันที่เขตส่งเรื่องให้กรม","สำนักงานคลังจังหวัดที่พิจารณา","ผู้รับผิดชอบเรื่อง","นำเข้าการประชุมครั้งที่","ลำดับเรื่องในวาระ","เลขเอกสาร พณ.","เลขท้ายเรื่อง","วันที่เข้าประชุม","มติผลการพิจารณา","ประเด็นอุทธรณ์","ข้อกฎหมายที่เกี่ยวข้อง","เหตุผลการวินิจฉัย","สถานะ","เมื่อวันที่",...DOC_SLOTS.map(d => d.t),"เอกสารอื่น ๆ"];
+  const rows = filtered().map(i => [i.fy, i.seq, i.appealNo, i.project, i.egpNo ? `="${i.egpNo}"` : "", i.procType, i.supply, i.criteria, i.agency, i.docNo, thDate(i.docDate), i.appellant, i.appellantId ? `="${i.appellantId}"` : "", thDate(i.deptToRegion), thDate(i.regionToDept), i.office, i.owner, i.meetingNo, i.agendaNo, i.pnNo, i.refNo, thDate(i.meetingDate), rsOf(i.result)?.t || "", i.issue, i.laws, i.summary, stOf(i.status)?.t || "", thDate(i.statusDate), ...DOC_SLOTS.map(d => i[d.k] || ""), (i.links || []).map(l => `${l.label || "เอกสาร"}: ${l.url}`).join("\n")]);
   const csv = "﻿" + [H, ...rows].map(r => r.map(v => '"' + String(v ?? "").replace(/"/g, '""') + '"').join(",")).join("\r\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
